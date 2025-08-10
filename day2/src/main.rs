@@ -34,32 +34,18 @@ impl Computer {
         Self { intcode_parser }
     }
 
-    fn get_intcode(self) -> Vec<i32> {
-        self.intcode_parser.data
-    }
-
-    //fn add2(mut self, val_l: i32, val_r: i32, dst_idx: usize) {
-    //    let addition_result = val_l + val_r;
-    //    self.intcode_parser.data[dst_idx] = addition_result;
-    //}
-
     fn add2(val_l: i32, val_r: i32) -> i32 {
         val_l + val_r
     }
-
-    //fn multiply2(mut self, val_l: i32, val_r: i32, result_idx: usize) {
-    //  let multiplication_result = val_l * val_r;
-    //  self.intcode_parser.data[dst_idx] = multiplication_result;
-    //}
 
     fn multiply2(val_l: i32, val_r: i32) -> i32 {
         val_l * val_r
     }
 
-    fn execute_intcode(&mut self) {
-        println!("Intcode data: {:?}", self.intcode_parser.data);
+    fn execute_intcode(&mut self) -> Vec<i32> {
+        let mut result_intcode = self.intcode_parser.data.clone();
         let mut idx = 0;
-        let mut code = Some(self.intcode_parser.data[idx]);
+        let mut code = Some(result_intcode[idx]);
         while let Some(value) = code {
             if value == 99 {
                 code = None;
@@ -67,27 +53,45 @@ impl Computer {
                 match value {
                     1 => {
                         let sum = Self::add2(
-                            self.intcode_parser.data[self.intcode_parser.data[idx + 1] as usize],
-                            self.intcode_parser.data[self.intcode_parser.data[idx + 2] as usize],
+                            result_intcode[result_intcode[idx + 1] as usize],
+                            result_intcode[result_intcode[idx + 2] as usize],
                         );
-                        let dst_idx = self.intcode_parser.data[idx + 3] as usize;
-                        self.intcode_parser.data[dst_idx] = sum;
+                        let dst_idx = result_intcode[idx + 3] as usize;
+                        result_intcode[dst_idx] = sum;
                         idx += 4;
                     }
                     2 => {
                         let multiplication = Self::multiply2(
-                            self.intcode_parser.data[self.intcode_parser.data[idx + 1] as usize],
-                            self.intcode_parser.data[self.intcode_parser.data[idx + 2] as usize],
+                            result_intcode[result_intcode[idx + 1] as usize],
+                            result_intcode[result_intcode[idx + 2] as usize],
                         );
-                        let dst_idx = self.intcode_parser.data[idx + 3] as usize;
-                        self.intcode_parser.data[dst_idx] = multiplication;
+                        let dst_idx = result_intcode[idx + 3] as usize;
+                        result_intcode[dst_idx] = multiplication;
                         idx += 4;
                     }
                     _ => idx += 1,
                 }
-                code = Some(self.intcode_parser.data[idx]);
+                code = Some(result_intcode[idx]);
             }
         }
+        result_intcode
+    }
+
+    fn find_correct_noun_and_verb(&mut self) -> (i32, i32) {
+        for n in 0..=99 {
+            for v in 0..=99 {
+                self.intcode_parser.data[1] = n;
+                self.intcode_parser.data[2] = v;
+
+                let result_intcode = self.execute_intcode();
+
+                if result_intcode[0] == 19690720 {
+                    return (n, v);
+                }
+            }
+        }
+
+        panic!("Noun and verb resulting in 19690720 could not be found!");
     }
 }
 
@@ -95,8 +99,9 @@ fn main() {
     let intcode_parser = IntCodeParser::parse_input("day2/data/input.txt".to_string());
     let mut computer = Computer::new(intcode_parser);
 
-    computer.execute_intcode();
+    let result_intcode = computer.execute_intcode();
+    println!("Final Intcode[0]: {}", result_intcode[0]);
 
-    let result = computer.get_intcode();
-    println!("Final Intcode: {:?}", result);
+    let (n, v) = computer.find_correct_noun_and_verb();
+    println!("Noun: {n}, Verb: {v}");
 }
