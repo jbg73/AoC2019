@@ -1,19 +1,20 @@
-use super::ProgramName;
+use super::{Instruction, ProgramName, ProgramState};
 use crate::parser::file_parser::IntCodeParser;
 
 pub struct Computer {
     intcode_data: Vec<i32>,
+    current_address: usize,
+    state: ProgramState,
 }
 
 impl Computer {
-    pub fn new() -> Self {
-        Self {
-            intcode_data: Vec::new(),
+    // returns the number of "jumps" to do on the "sp"
+    fn get_operation_count(opcode: i32) -> usize {
+        match opcode {
+            1 => 3,
+            2 => 3,
+            _ => 0,
         }
-    }
-
-    pub fn load_program_from_file(&mut self, filename: String) {
-        self.intcode_data = IntCodeParser::parse_input(filename);
     }
 
     fn add2(val_l: i32, val_r: i32) -> i32 {
@@ -23,39 +24,74 @@ impl Computer {
     fn multiply2(val_l: i32, val_r: i32) -> i32 {
         val_l * val_r
     }
+}
+
+impl Computer {
+    pub fn new() -> Self {
+        Self {
+            intcode_data: Vec::new(),
+            current_address: 0,
+            state: ProgramState::Idle,
+        }
+    }
+
+    pub fn load_program_from_file(&mut self, filename: String) {
+        self.intcode_data = IntCodeParser::parse_input(filename);
+    }
+
+    pub fn reset(&mut self) {
+        self.current_address = 0;
+        self.state = ProgramState::Idle;
+    }
+
+    fn fetch_instruction(&mut self) -> Instruction {
+        let opcode = self.intcode_data[self.current_address];
+        self.current_address += 1;
+
+        let n_args = Computer::get_operation_count(opcode);
+
+        let start_idx = self.current_address;
+        let end_idx = start_idx + n_args;
+        let fetched_args: Vec<i32> = self.intcode_data[start_idx..end_idx].to_vec();
+        self.current_address += n_args;
+
+        Instruction {
+            opcode,
+            args: fetched_args,
+        }
+    }
 
     fn execute_intcode(&mut self) -> Vec<i32> {
         let mut result_intcode = self.intcode_data.clone();
-        let mut idx = 0;
-        let mut code = Some(result_intcode[idx]);
-        while let Some(value) = code {
-            if value == 99 {
-                code = None;
-            } else {
-                match value {
-                    1 => {
-                        let sum = Self::add2(
-                            result_intcode[result_intcode[idx + 1] as usize],
-                            result_intcode[result_intcode[idx + 2] as usize],
-                        );
-                        let dst_idx = result_intcode[idx + 3] as usize;
-                        result_intcode[dst_idx] = sum;
-                        idx += 4;
-                    }
-                    2 => {
-                        let multiplication = Self::multiply2(
-                            result_intcode[result_intcode[idx + 1] as usize],
-                            result_intcode[result_intcode[idx + 2] as usize],
-                        );
-                        let dst_idx = result_intcode[idx + 3] as usize;
-                        result_intcode[dst_idx] = multiplication;
-                        idx += 4;
-                    }
-                    _ => idx += 1,
+        self.state = ProgramState::Running;
+
+        while (self.current_address < result_intcode.len()) && (self.state == ProgramState::Running)
+        {
+            let instruction = self.fetch_instruction();
+            match instruction.opcode {
+                1 => {
+                    let operand1 = result_intcode[instruction.args[0] as usize];
+                    let operand2 = result_intcode[instruction.args[1] as usize];
+                    let dst = instruction.args[2];
+
+                    let result = Computer::add2(operand1, operand2);
+                    result_intcode[dst as usize] = result;
                 }
-                code = Some(result_intcode[idx]);
+                2 => {
+                    let operand1 = result_intcode[instruction.args[0] as usize];
+                    let operand2 = result_intcode[instruction.args[1] as usize];
+                    let dst = instruction.args[2];
+
+                    let result = Computer::multiply2(operand1, operand2);
+                    result_intcode[dst as usize] = result;
+                }
+                99 => {
+                    self.state = ProgramState::Finished;
+                }
+                _ => {}
             }
         }
+
         result_intcode
     }
 
@@ -70,6 +106,7 @@ impl Computer {
                 if result_intcode[0] == 19690720 {
                     return (n, v);
                 }
+                self.reset();
             }
         }
 
