@@ -1,10 +1,13 @@
-use super::{Instruction, ProgramName, ProgramState};
+use std::result;
+
+use super::{Instruction, InstructionInfo, ParameterMode, ProgramName, ProgramState};
 use crate::parser::file_parser::IntCodeParser;
 
 pub struct Computer {
     intcode_data: Vec<i32>,
     current_address: usize,
     state: ProgramState,
+    input: i32,
 }
 
 impl Computer {
@@ -13,7 +16,32 @@ impl Computer {
         match opcode {
             1 => 3,
             2 => 3,
+            3 => 1,
+            4 => 1,
             _ => 0,
+        }
+    }
+
+    fn read_instruction(mut opcode: i32) -> InstructionInfo {
+        let opcode_parsed = opcode % 100;
+        opcode = opcode / 100;
+
+        let mut param_modes: Vec<ParameterMode> = Vec::new();
+        while opcode > 10 {
+            let mode = opcode % 10;
+            let mode = match mode {
+                0 => ParameterMode::Position,
+                1 => ParameterMode::Immediate,
+                _ => ParameterMode::Position,
+            };
+            param_modes.push(mode);
+
+            opcode = opcode / 10;
+        }
+
+        InstructionInfo {
+            opcode: opcode_parsed,
+            args_mode: param_modes,
         }
     }
 
@@ -32,6 +60,7 @@ impl Computer {
             intcode_data: Vec::new(),
             current_address: 0,
             state: ProgramState::Idle,
+            input: 1, // TODO: read problem and properly handle input. Not Hardcoded
         }
     }
 
@@ -45,10 +74,12 @@ impl Computer {
     }
 
     fn fetch_instruction(&mut self) -> Instruction {
-        let opcode = self.intcode_data[self.current_address];
+        let next_intcode = self.intcode_data[self.current_address];
+        let instruction = Computer::read_instruction(next_intcode);
+
         self.current_address += 1;
 
-        let n_args = Computer::get_operation_count(opcode);
+        let n_args = Computer::get_operation_count(instruction.opcode);
 
         let start_idx = self.current_address;
         let end_idx = start_idx + n_args;
@@ -56,7 +87,7 @@ impl Computer {
         self.current_address += n_args;
 
         Instruction {
-            opcode,
+            info: instruction,
             args: fetched_args,
         }
     }
@@ -68,7 +99,7 @@ impl Computer {
         while (self.current_address < result_intcode.len()) && (self.state == ProgramState::Running)
         {
             let instruction = self.fetch_instruction();
-            match instruction.opcode {
+            match instruction.info.opcode {
                 1 => {
                     let operand1 = result_intcode[instruction.args[0] as usize];
                     let operand2 = result_intcode[instruction.args[1] as usize];
@@ -84,6 +115,14 @@ impl Computer {
 
                     let result = Computer::multiply2(operand1, operand2);
                     result_intcode[dst as usize] = result;
+                }
+                3 => {
+                    let dst = instruction.args[0];
+                    result_intcode[dst as usize] = self.input;
+                }
+                4 => {
+                    let src = instruction.args[0];
+                    println!("{}", result_intcode[src as usize]);
                 }
                 99 => {
                     self.state = ProgramState::Finished;
@@ -122,6 +161,9 @@ impl Computer {
             ProgramName::SearchNounAndVerb => {
                 let result = self.find_correct_noun_and_verb();
                 println!("Search N&V program result: ({},{})", result.0, result.1);
+            }
+            ProgramName::TEST => {
+                self.execute_intcode();
             }
         }
     }
