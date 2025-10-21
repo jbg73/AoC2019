@@ -1,4 +1,4 @@
-use super::{Instruction, InstructionInfo, ParameterMode, ProgramState};
+use super::{Instruction, InstructionInfo, Opcode, ParameterMode, ProgramState};
 use crate::parser::file_parser::IntCodeParser;
 
 pub struct Computer {
@@ -9,13 +9,14 @@ pub struct Computer {
 
 impl Computer {
     // returns the number of "jumps" to do on the "sp"
-    fn get_operation_count(opcode: i32) -> usize {
+    fn get_operation_count(opcode: Opcode) -> usize {
         match opcode {
-            1 => 3,
-            2 => 3,
-            3 => 1,
-            4 => 1,
-            _ => 0,
+            Opcode::Add => 3,
+            Opcode::Mul => 3,
+            Opcode::Inp => 1,
+            Opcode::Out => 1,
+            Opcode::Hlt => 0,
+            Opcode::Nop => 0,
         }
     }
 
@@ -46,7 +47,7 @@ impl Computer {
         }
 
         InstructionInfo {
-            opcode: opcode_parsed,
+            opcode: opcode_parsed.into(),
             args_mode: param_modes,
         }
     }
@@ -106,7 +107,7 @@ impl Computer {
         while (self.current_address < intcode_data.len()) && (self.state == ProgramState::Running) {
             let instruction = self.fetch_instruction(&intcode_data);
             match instruction.info.opcode {
-                1 => {
+                Opcode::Add => {
                     let operand1 = Computer::resolve_argument(
                         &intcode_data,
                         instruction.args[0],
@@ -122,7 +123,7 @@ impl Computer {
                     let result = Computer::add2(operand1, operand2);
                     intcode_data[dst as usize] = result;
                 }
-                2 => {
+                Opcode::Mul => {
                     let operand1 = Computer::resolve_argument(
                         &intcode_data,
                         instruction.args[0],
@@ -138,18 +139,18 @@ impl Computer {
                     let result = Computer::multiply2(operand1, operand2);
                     intcode_data[dst as usize] = result;
                 }
-                3 => {
+                Opcode::Inp => {
                     let dst = instruction.args[0];
                     intcode_data[dst as usize] = self.input;
                 }
-                4 => {
+                Opcode::Out => {
                     let src = instruction.args[0];
                     println!("{}", intcode_data[src as usize]);
                 }
-                99 => {
+                Opcode::Hlt => {
                     self.state = ProgramState::Finished;
                 }
-                _ => {}
+                Opcode::Nop => {}
             }
         }
 
