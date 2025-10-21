@@ -17,6 +17,10 @@ impl Computer {
             Opcode::Out => 1,
             Opcode::Hlt => 0,
             Opcode::Nop => 0,
+            Opcode::Jit => 2,
+            Opcode::Jif => 2,
+            Opcode::Let => 3,
+            Opcode::Eqs => 3,
         }
     }
 
@@ -66,7 +70,7 @@ impl Computer {
         Self {
             current_address: 0,
             state: ProgramState::Idle,
-            input: 1, // TODO: read problem and properly handle input. Not Hardcoded
+            input: 5, // TODO: read problem and properly handle input. Not Hardcoded
         }
     }
 
@@ -106,6 +110,7 @@ impl Computer {
 
         while (self.current_address < intcode_data.len()) && (self.state == ProgramState::Running) {
             let instruction = self.fetch_instruction(&intcode_data);
+
             match instruction.info.opcode {
                 Opcode::Add => {
                     let operand1 = Computer::resolve_argument(
@@ -144,8 +149,81 @@ impl Computer {
                     intcode_data[dst as usize] = self.input;
                 }
                 Opcode::Out => {
-                    let src = instruction.args[0];
-                    println!("{}", intcode_data[src as usize]);
+                    // let src = instruction.args[0];
+                    let output = Computer::resolve_argument(
+                        &intcode_data,
+                        instruction.args[0],
+                        instruction.info.args_mode[0],
+                    );
+                    println!("{}", output);
+                }
+                Opcode::Jit => {
+                    let value = Computer::resolve_argument(
+                        &intcode_data,
+                        instruction.args[0],
+                        instruction.info.args_mode[0],
+                    );
+                    if value > 0 {
+                        let dst = Computer::resolve_argument(
+                            &intcode_data,
+                            instruction.args[1],
+                            instruction.info.args_mode[1],
+                        );
+                        self.current_address = dst as usize;
+                    }
+                }
+                Opcode::Jif => {
+                    let value = Computer::resolve_argument(
+                        &intcode_data,
+                        instruction.args[0],
+                        instruction.info.args_mode[0],
+                    );
+                    if value == 0 {
+                        let dst = Computer::resolve_argument(
+                            &intcode_data,
+                            instruction.args[1],
+                            instruction.info.args_mode[1],
+                        );
+                        self.current_address = dst as usize;
+                    }
+                }
+                Opcode::Let => {
+                    let lhs = Computer::resolve_argument(
+                        &intcode_data,
+                        instruction.args[0],
+                        instruction.info.args_mode[0],
+                    );
+                    let rhs = Computer::resolve_argument(
+                        &intcode_data,
+                        instruction.args[1],
+                        instruction.info.args_mode[1],
+                    );
+                    let dst = instruction.args[2];
+
+                    if lhs < rhs {
+                        intcode_data[dst as usize] = 1;
+                    } else {
+                        intcode_data[dst as usize] = 0;
+                    }
+                }
+                Opcode::Eqs => {
+                    let lhs = Computer::resolve_argument(
+                        &intcode_data,
+                        instruction.args[0],
+                        instruction.info.args_mode[0],
+                    );
+                    let rhs = Computer::resolve_argument(
+                        &intcode_data,
+                        instruction.args[1],
+                        instruction.info.args_mode[1],
+                    );
+                    let dst = instruction.args[2];
+
+                    if lhs == rhs {
+                        intcode_data[dst as usize] = 1;
+                    } else {
+                        intcode_data[dst as usize] = 0;
+                    }
                 }
                 Opcode::Hlt => {
                     self.state = ProgramState::Finished;

@@ -31,6 +31,10 @@ pub enum Opcode {
     Mul,
     Inp,
     Out,
+    Jit,
+    Jif,
+    Let,
+    Eqs,
     Hlt,
     Nop,
 }
@@ -42,6 +46,10 @@ impl From<i32> for Opcode {
             2 => Self::Mul,
             3 => Self::Inp,
             4 => Self::Out,
+            5 => Self::Jit,
+            6 => Self::Jif,
+            7 => Self::Let,
+            8 => Self::Eqs,
             99 => Self::Hlt,
             _ => Self::Nop,
         }
