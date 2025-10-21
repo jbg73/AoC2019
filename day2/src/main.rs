@@ -5,9 +5,13 @@ mod parser;
 
 fn main() {
     let mut computer = Computer::new();
-    let program_file = "day2/data/day3_input.txt".to_string();
+    let noun_and_verb_file = "day2/data/input.txt".to_string();
+    let test_program_file = "day2/data/day3_input.txt".to_string();
 
-    // computer.run(computer::ProgramName::SimpleIntCode);
-    // computer.run(computer::ProgramName::SearchNounAndVerb);
-    computer.run(computer::ProgramName::TEST, program_file);
+    let res = computer.run(|cpu| cpu.find_correct_noun_and_verb(&noun_and_verb_file));
+    println!("Result from Find N&V: {:?} \n", res);
+
+    computer.run(|cpu| {
+        cpu.thermal_environment_supervision_terminal_diagnostic_program(test_program_file)
+    });
 }

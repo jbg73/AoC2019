@@ -1,4 +1,4 @@
-use super::{Instruction, InstructionInfo, ParameterMode, ProgramName, ProgramState};
+use super::{Instruction, InstructionInfo, ParameterMode, ProgramState};
 use crate::parser::file_parser::IntCodeParser;
 
 pub struct Computer {
@@ -156,7 +156,7 @@ impl Computer {
         intcode_data
     }
 
-    fn find_correct_noun_and_verb(&mut self, program_file: &String) -> (i32, i32) {
+    pub fn find_correct_noun_and_verb(&mut self, program_file: &String) -> (i32, i32) {
         let mut intcode_data = IntCodeParser::parse_input(program_file);
         for n in 0..=99 {
             for v in 0..=99 {
@@ -175,20 +175,21 @@ impl Computer {
         panic!("Noun and verb resulting in 19690720 could not be found!");
     }
 
-    pub fn run(&mut self, program: ProgramName, program_file: String) {
+    pub fn thermal_environment_supervision_terminal_diagnostic_program(
+        &mut self,
+        program_file: String,
+    ) {
         let intcode_data = IntCodeParser::parse_input(&program_file);
-        match program {
-            ProgramName::SimpleIntCode => {
-                let result = self.execute_intcode(intcode_data);
-                println!("Intcode program result: {}", result[0]);
-            }
-            ProgramName::SearchNounAndVerb => {
-                let result = self.find_correct_noun_and_verb(&program_file);
-                println!("Search N&V program result: ({},{})", result.0, result.1);
-            }
-            ProgramName::TEST => {
-                self.execute_intcode(intcode_data);
-            }
-        }
+        self.execute_intcode(intcode_data);
+    }
+
+    pub fn run<F, R>(&mut self, program: F) -> R
+    where
+        F: FnOnce(&mut Self) -> R,
+    {
+        let result = program(self);
+        self.reset();
+
+        result
     }
 }

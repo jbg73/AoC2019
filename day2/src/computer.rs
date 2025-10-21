@@ -1,11 +1,5 @@
 pub mod cpu;
 
-pub enum ProgramName {
-    SimpleIntCode,
-    SearchNounAndVerb,
-    TEST,
-}
-
 #[derive(PartialEq)]
 pub enum ProgramState {
     Idle,
