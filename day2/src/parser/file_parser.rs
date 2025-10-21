@@ -6,7 +6,7 @@ use std::{
 pub struct IntCodeParser {}
 
 impl IntCodeParser {
-    pub fn parse_input(filename: String) -> Vec<i32> {
+    pub fn parse_input(filename: &String) -> Vec<i32> {
         let file = File::open(filename).unwrap();
         let reader = BufReader::new(file);
 

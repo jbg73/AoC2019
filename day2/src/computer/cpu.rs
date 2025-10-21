@@ -2,7 +2,6 @@ use super::{Instruction, InstructionInfo, ParameterMode, ProgramName, ProgramSta
 use crate::parser::file_parser::IntCodeParser;
 
 pub struct Computer {
-    intcode_data: Vec<i32>,
     current_address: usize,
     state: ProgramState,
     input: i32,
@@ -64,15 +63,10 @@ impl Computer {
 impl Computer {
     pub fn new() -> Self {
         Self {
-            intcode_data: Vec::new(),
             current_address: 0,
             state: ProgramState::Idle,
             input: 1, // TODO: read problem and properly handle input. Not Hardcoded
         }
-    }
-
-    pub fn load_program_from_file(&mut self, filename: String) {
-        self.intcode_data = IntCodeParser::parse_input(filename);
     }
 
     pub fn reset(&mut self) {
@@ -80,14 +74,14 @@ impl Computer {
         self.state = ProgramState::Idle;
     }
 
-    pub fn resolve_argument(intcode_data: &Vec<i32>, value: i32, mode: ParameterMode) -> i32 {
+    pub fn resolve_argument(intcode_data: &[i32], value: i32, mode: ParameterMode) -> i32 {
         if mode == ParameterMode::Position {
             return intcode_data[value as usize];
         }
         value
     }
 
-    fn fetch_instruction(&mut self, intcode_data: &Vec<i32>) -> Instruction {
+    fn fetch_instruction(&mut self, intcode_data: &[i32]) -> Instruction {
         let next_intcode = intcode_data[self.current_address];
         let instruction = Computer::read_instruction(next_intcode);
 
@@ -106,53 +100,51 @@ impl Computer {
         }
     }
 
-    fn execute_intcode(&mut self) -> Vec<i32> {
-        let mut result_intcode = self.intcode_data.clone();
+    fn execute_intcode(&mut self, mut intcode_data: Vec<i32>) -> Vec<i32> {
         self.state = ProgramState::Running;
 
-        while (self.current_address < result_intcode.len()) && (self.state == ProgramState::Running)
-        {
-            let instruction = self.fetch_instruction(&result_intcode);
+        while (self.current_address < intcode_data.len()) && (self.state == ProgramState::Running) {
+            let instruction = self.fetch_instruction(&intcode_data);
             match instruction.info.opcode {
                 1 => {
                     let operand1 = Computer::resolve_argument(
-                        &result_intcode,
+                        &intcode_data,
                         instruction.args[0],
                         instruction.info.args_mode[0],
                     );
                     let operand2 = Computer::resolve_argument(
-                        &result_intcode,
+                        &intcode_data,
                         instruction.args[1],
                         instruction.info.args_mode[1],
                     );
                     let dst = instruction.args[2];
 
                     let result = Computer::add2(operand1, operand2);
-                    result_intcode[dst as usize] = result;
+                    intcode_data[dst as usize] = result;
                 }
                 2 => {
                     let operand1 = Computer::resolve_argument(
-                        &result_intcode,
+                        &intcode_data,
                         instruction.args[0],
                         instruction.info.args_mode[0],
                     );
                     let operand2 = Computer::resolve_argument(
-                        &result_intcode,
+                        &intcode_data,
                         instruction.args[1],
                         instruction.info.args_mode[1],
                     );
                     let dst = instruction.args[2];
 
                     let result = Computer::multiply2(operand1, operand2);
-                    result_intcode[dst as usize] = result;
+                    intcode_data[dst as usize] = result;
                 }
                 3 => {
                     let dst = instruction.args[0];
-                    result_intcode[dst as usize] = self.input;
+                    intcode_data[dst as usize] = self.input;
                 }
                 4 => {
                     let src = instruction.args[0];
-                    println!("{}", result_intcode[src as usize]);
+                    println!("{}", intcode_data[src as usize]);
                 }
                 99 => {
                     self.state = ProgramState::Finished;
@@ -161,16 +153,17 @@ impl Computer {
             }
         }
 
-        result_intcode
+        intcode_data
     }
 
-    fn find_correct_noun_and_verb(&mut self) -> (i32, i32) {
+    fn find_correct_noun_and_verb(&mut self, program_file: &String) -> (i32, i32) {
+        let mut intcode_data = IntCodeParser::parse_input(program_file);
         for n in 0..=99 {
             for v in 0..=99 {
-                self.intcode_data[1] = n;
-                self.intcode_data[2] = v;
+                intcode_data[1] = n;
+                intcode_data[2] = v;
 
-                let result_intcode = self.execute_intcode();
+                let result_intcode = self.execute_intcode(intcode_data.clone());
 
                 if result_intcode[0] == 19690720 {
                     return (n, v);
@@ -182,18 +175,19 @@ impl Computer {
         panic!("Noun and verb resulting in 19690720 could not be found!");
     }
 
-    pub fn run(&mut self, program: ProgramName) {
+    pub fn run(&mut self, program: ProgramName, program_file: String) {
+        let intcode_data = IntCodeParser::parse_input(&program_file);
         match program {
             ProgramName::SimpleIntCode => {
-                let result = self.execute_intcode();
+                let result = self.execute_intcode(intcode_data);
                 println!("Intcode program result: {}", result[0]);
             }
             ProgramName::SearchNounAndVerb => {
-                let result = self.find_correct_noun_and_verb();
+                let result = self.find_correct_noun_and_verb(&program_file);
                 println!("Search N&V program result: ({},{})", result.0, result.1);
             }
             ProgramName::TEST => {
-                self.execute_intcode();
+                self.execute_intcode(intcode_data);
             }
         }
     }
