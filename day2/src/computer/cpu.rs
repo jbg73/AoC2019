@@ -1,5 +1,3 @@
-use std::result;
-
 use super::{Instruction, InstructionInfo, ParameterMode, ProgramName, ProgramState};
 use crate::parser::file_parser::IntCodeParser;
 
@@ -24,10 +22,11 @@ impl Computer {
 
     fn read_instruction(mut opcode: i32) -> InstructionInfo {
         let opcode_parsed = opcode % 100;
-        opcode = opcode / 100;
+
+        opcode /= 100;
 
         let mut param_modes: Vec<ParameterMode> = Vec::new();
-        while opcode > 10 {
+        while opcode >= 10 {
             let mode = opcode % 10;
             let mode = match mode {
                 0 => ParameterMode::Position,
@@ -36,7 +35,15 @@ impl Computer {
             };
             param_modes.push(mode);
 
-            opcode = opcode / 10;
+            opcode /= 10;
+        }
+        match opcode {
+            1 => param_modes.push(ParameterMode::Immediate),
+            _ => param_modes.push(ParameterMode::Position),
+        }
+
+        while param_modes.len() < 5 {
+            param_modes.push(ParameterMode::Position);
         }
 
         InstructionInfo {
@@ -73,8 +80,15 @@ impl Computer {
         self.state = ProgramState::Idle;
     }
 
-    fn fetch_instruction(&mut self) -> Instruction {
-        let next_intcode = self.intcode_data[self.current_address];
+    pub fn resolve_argument(intcode_data: &Vec<i32>, value: i32, mode: ParameterMode) -> i32 {
+        if mode == ParameterMode::Position {
+            return intcode_data[value as usize];
+        }
+        value
+    }
+
+    fn fetch_instruction(&mut self, intcode_data: &Vec<i32>) -> Instruction {
+        let next_intcode = intcode_data[self.current_address];
         let instruction = Computer::read_instruction(next_intcode);
 
         self.current_address += 1;
@@ -83,7 +97,7 @@ impl Computer {
 
         let start_idx = self.current_address;
         let end_idx = start_idx + n_args;
-        let fetched_args: Vec<i32> = self.intcode_data[start_idx..end_idx].to_vec();
+        let fetched_args: Vec<i32> = intcode_data[start_idx..end_idx].to_vec();
         self.current_address += n_args;
 
         Instruction {
@@ -98,19 +112,35 @@ impl Computer {
 
         while (self.current_address < result_intcode.len()) && (self.state == ProgramState::Running)
         {
-            let instruction = self.fetch_instruction();
+            let instruction = self.fetch_instruction(&result_intcode);
             match instruction.info.opcode {
                 1 => {
-                    let operand1 = result_intcode[instruction.args[0] as usize];
-                    let operand2 = result_intcode[instruction.args[1] as usize];
+                    let operand1 = Computer::resolve_argument(
+                        &result_intcode,
+                        instruction.args[0],
+                        instruction.info.args_mode[0],
+                    );
+                    let operand2 = Computer::resolve_argument(
+                        &result_intcode,
+                        instruction.args[1],
+                        instruction.info.args_mode[1],
+                    );
                     let dst = instruction.args[2];
 
                     let result = Computer::add2(operand1, operand2);
                     result_intcode[dst as usize] = result;
                 }
                 2 => {
-                    let operand1 = result_intcode[instruction.args[0] as usize];
-                    let operand2 = result_intcode[instruction.args[1] as usize];
+                    let operand1 = Computer::resolve_argument(
+                        &result_intcode,
+                        instruction.args[0],
+                        instruction.info.args_mode[0],
+                    );
+                    let operand2 = Computer::resolve_argument(
+                        &result_intcode,
+                        instruction.args[1],
+                        instruction.info.args_mode[1],
+                    );
                     let dst = instruction.args[2];
 
                     let result = Computer::multiply2(operand1, operand2);

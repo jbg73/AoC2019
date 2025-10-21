@@ -13,7 +13,7 @@ pub enum ProgramState {
     Finished,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum ParameterMode {
     Position,
     Immediate,
